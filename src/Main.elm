@@ -2,7 +2,7 @@ module Main exposing (..)
 
 import Browser
 import Html exposing (..)
-import Html.Attributes exposing (attribute, class, for, href, id, name, step, type_, value)
+import Html.Attributes exposing (class, for, href, id, name, step, type_, value)
 import Json.Decode exposing (Decoder, float, succeed)
 import Json.Decode.Pipeline exposing (required)
 
@@ -72,12 +72,28 @@ type alias RPEReps =
 
 
 type alias Model =
-    { rpeTable : RPETable }
+    { rpeTable : RPETable
+    , givenWeight : Float
+    , givenReps : Int
+    , givenRPE : Int
+    , targetReps : Int
+    , targetRPE : Int
+    , targetWeight : Float
+    , estimated1RM : Float
+    }
 
 
 initialModel : RPETable -> Model
 initialModel rpeTable =
-    { rpeTable = rpeTable }
+    { rpeTable = rpeTable
+    , givenWeight = 0
+    , givenReps = 0
+    , givenRPE = 0
+    , targetReps = 0
+    , targetRPE = 0
+    , targetWeight = 0
+    , estimated1RM = 0
+    }
 
 
 
@@ -85,7 +101,11 @@ initialModel rpeTable =
 
 
 type Msg
-    = NoOp
+    = UpdateGivenWeight Float
+    | UpdateGivenReps Int
+    | UpdateGivenRPE Int
+    | UpdateTargetReps Int
+    | UpdateTargetRPE Int
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -97,6 +117,15 @@ update msg model =
 ---- VIEW ----
 
 
+showTargetFloat : Float -> String
+showTargetFloat number =
+    if number == 0 then
+        "..."
+
+    else
+        String.fromFloat number
+
+
 view : Model -> Html Msg
 view model =
     div [ id "content" ]
@@ -106,30 +135,52 @@ view model =
             ]
         , div [ class "subheader" ]
             [ h3 []
-                [ text "Basis Numbers " ]
+                [ text "Given Numbers " ]
             ]
-        , div [ class "input-row basis-weight" ]
+        , div [ class "input-row given-weight" ]
             [ div [ class "error" ] []
             , div [ class "input-container" ]
-                [ label [ for "basis-weight" ]
+                [ label [ for "given-weight" ]
                     [ text "Weight " ]
-                , input [ class "weight", id "basis-weight", step "0.01", type_ "number" ] []
+                , input
+                    [ class "weight"
+                    , id "given-weight"
+                    , step "0.01"
+                    , type_
+                        "number"
+                    , value (String.fromFloat model.givenWeight)
+                    ]
+                    []
                 ]
             ]
-        , div [ class "input-row basis-reps" ]
+        , div [ class "input-row given-reps" ]
             [ div [ class "error" ] []
             , div [ class "input-container" ]
-                [ label [ for "basis-reps" ]
+                [ label [ for "given-reps" ]
                     [ text "Reps " ]
-                , input [ class "reps", id "basis-reps", type_ "number" ] []
+                , input
+                    [ class "reps"
+                    , id "given-reps"
+                    , type_ "number"
+                    , value
+                        (String.fromInt model.givenReps)
+                    ]
+                    []
                 ]
             ]
-        , div [ class "input-row basis-rpe bottom-border" ]
+        , div [ class "input-row given-rpe bottom-border" ]
             [ div [ class "error" ] []
             , div [ class "input-container" ]
-                [ label [ for "basis-rpe" ]
+                [ label [ for "given-rpe" ]
                     [ text "RPE " ]
-                , input [ class "rpe", id "basis-rpe", type_ "number" ] []
+                , input
+                    [ class "rpe"
+                    , id "given-rpe"
+                    , type_ "number"
+                    , value
+                        (String.fromInt model.givenRPE)
+                    ]
+                    []
                 ]
             ]
         , div [ class "subheader" ]
@@ -141,7 +192,17 @@ view model =
             , div [ class "input-container" ]
                 [ label [ for "desired-reps" ]
                     [ text "Reps " ]
-                , input [ class "reps", attribute "disabled" "", id "desired-reps", type_ "number" ] []
+                , input
+                    [ class "reps"
+                    , id
+                        "desired-reps"
+                    , type_ "number"
+                    , value
+                        (String.fromInt
+                            model.targetReps
+                        )
+                    ]
+                    []
                 ]
             ]
         , div [ class "input-row desired-rpe bottom-border" ]
@@ -149,19 +210,29 @@ view model =
             , div [ class "input-container" ]
                 [ label [ for "desired-rpe" ]
                     [ text "RPE " ]
-                , input [ class "rpe", attribute "disabled" "", id "desired-rpe", type_ "number" ] []
+                , input
+                    [ class "rpe"
+                    , id
+                        "desired-rpe"
+                    , type_ "number"
+                    , value
+                        (String.fromInt
+                            model.targetRPE
+                        )
+                    ]
+                    []
                 ]
             ]
         , div [ class "results" ]
             [ h3 []
                 [ text "Target weight: "
-                , span [ id "solved-weight" ]
-                    [ text "... " ]
+                , span [ id "target-weight" ]
+                    [ text (showTargetFloat model.targetWeight) ]
                 ]
             , h3 []
                 [ text "Estimated 1RM: "
                 , span [ id "e1RM" ]
-                    [ text "... " ]
+                    [ text (showTargetFloat model.estimated1RM) ]
                 ]
             ]
         , div [ class "options" ]
@@ -180,9 +251,9 @@ view model =
             ]
         , div [ class "footer" ]
             [ span []
-                [ text "© 2018 Zack Youngren" ]
+                [ text "© 2020 Zack Youngren" ]
             , text "Code on "
-            , a [ href "https://www.github.com/zack/rpe" ]
+            , a [ href "https://www.github.com/zack/rpe-elm" ]
                 [ text "GitHub" ]
             ]
         ]
