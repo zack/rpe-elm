@@ -1,10 +1,13 @@
 module Main exposing (..)
 
 import Browser
+import Debug
 import Html exposing (..)
 import Html.Attributes exposing (class, for, href, id, name, step, type_, value)
+import Html.Events exposing (onInput)
 import Json.Decode exposing (Decoder, float, succeed)
 import Json.Decode.Pipeline exposing (required)
+import List
 
 
 
@@ -67,32 +70,57 @@ type alias RPEReps =
     }
 
 
+type Field
+    = GivenWeight
+    | GivenReps
+    | GivenRPE
+    | TargetReps
+    | TargetRPE
+
+
+type Error
+    = Missing Field
+    | Bad Field
+
+
+type Msg
+    = UpdateField Field String
+
+
 
 ---- MODEL ----
 
 
 type alias Model =
     { rpeTable : RPETable
-    , givenWeight : Float
-    , givenReps : Int
-    , givenRPE : Int
-    , targetReps : Int
-    , targetRPE : Int
-    , targetWeight : Float
-    , estimated1RM : Float
+    , givenWeight : String
+    , givenReps : String
+    , givenRPE : String
+    , targetReps : String
+    , targetRPE : String
+    , targetWeight : String
+    , estimated1RM : String
+    , errors : List Error
     }
 
 
 initialModel : RPETable -> Model
 initialModel rpeTable =
     { rpeTable = rpeTable
-    , givenWeight = 0
-    , givenReps = 0
-    , givenRPE = 0
-    , targetReps = 0
-    , targetRPE = 0
-    , targetWeight = 0
-    , estimated1RM = 0
+    , givenWeight = ""
+    , givenReps = ""
+    , givenRPE = ""
+    , targetReps = ""
+    , targetRPE = ""
+    , targetWeight = ""
+    , estimated1RM = ""
+    , errors =
+        [ Missing GivenWeight
+        , Missing GivenReps
+        , Missing GivenRPE
+        , Missing TargetReps
+        , Missing TargetRPE
+        ]
     }
 
 
@@ -100,17 +128,76 @@ initialModel rpeTable =
 ---- UPDATE ----
 
 
-type Msg
-    = UpdateGivenWeight Float
-    | UpdateGivenReps Int
-    | UpdateGivenRPE Int
-    | UpdateTargetReps Int
-    | UpdateTargetRPE Int
+addUniqueItemToList : a -> List a -> List a
+addUniqueItemToList item list =
+    item :: filterAllItemFromList item list
+
+
+filterAllItemFromList : a -> List a -> List a
+filterAllItemFromList item list =
+    List.filter (\i -> i /= item) list
+
+
+getNewIntErrors : List Error -> String -> Field -> List Error
+getNewIntErrors errors stringInt fieldType =
+    let
+        parsedInt =
+            String.toInt stringInt
+
+        cleanErrors =
+            filterAllItemFromList (Missing fieldType) errors
+    in
+    if parsedInt == Nothing then
+        addUniqueItemToList (Bad fieldType) cleanErrors
+
+    else
+        filterAllItemFromList (Bad fieldType) cleanErrors
+
+
+getNewFloatErrors : List Error -> String -> Field -> List Error
+getNewFloatErrors errors stringFloat fieldType =
+    let
+        parsedFloat =
+            String.toInt stringFloat
+
+        cleanErrors =
+            filterAllItemFromList (Missing fieldType) errors
+    in
+    if parsedFloat == Nothing then
+        addUniqueItemToList (Bad fieldType) cleanErrors
+
+    else
+        filterAllItemFromList (Bad fieldType) cleanErrors
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    ( model, Cmd.none )
+    case msg of
+        UpdateField field value ->
+            let
+                newErrors =
+                    case field of
+                        GivenWeight ->
+                            getNewIntErrors model.errors value field
+
+                        _ ->
+                            getNewIntErrors model.errors value field
+            in
+            case field of
+                GivenWeight ->
+                    ( { model | givenWeight = value, errors = newErrors }, Cmd.none )
+
+                GivenReps ->
+                    ( { model | givenReps = value, errors = newErrors }, Cmd.none )
+
+                GivenRPE ->
+                    ( { model | givenRPE = value, errors = newErrors }, Cmd.none )
+
+                TargetReps ->
+                    ( { model | targetReps = value, errors = newErrors }, Cmd.none )
+
+                TargetRPE ->
+                    ( { model | targetRPE = value, errors = newErrors }, Cmd.none )
 
 
 
@@ -126,6 +213,24 @@ showTargetFloat number =
         String.fromFloat number
 
 
+getTargetWeight : List Error -> String -> String
+getTargetWeight errors weight =
+    if List.length errors > 0 then
+        "..."
+
+    else
+        "number"
+
+
+getEstimated1RM : List Error -> String -> String
+getEstimated1RM errors e1rm =
+    if List.length errors > 0 then
+        "..."
+
+    else
+        "number"
+
+
 view : Model -> Html Msg
 view model =
     div [ id "content" ]
@@ -135,7 +240,7 @@ view model =
             ]
         , div [ class "subheader" ]
             [ h3 []
-                [ text "Given Numbers " ]
+                [ text "Starting Numbers " ]
             ]
         , div [ class "input-row given-weight" ]
             [ div [ class "error" ] []
@@ -145,10 +250,9 @@ view model =
                 , input
                     [ class "weight"
                     , id "given-weight"
-                    , step "0.01"
-                    , type_
-                        "number"
-                    , value (String.fromFloat model.givenWeight)
+                    , onInput (UpdateField GivenWeight)
+                    , type_ "number"
+                    , value model.givenWeight
                     ]
                     []
                 ]
@@ -161,9 +265,9 @@ view model =
                 , input
                     [ class "reps"
                     , id "given-reps"
+                    , onInput (UpdateField GivenReps)
                     , type_ "number"
-                    , value
-                        (String.fromInt model.givenReps)
+                    , value model.givenReps
                     ]
                     []
                 ]
@@ -176,9 +280,9 @@ view model =
                 , input
                     [ class "rpe"
                     , id "given-rpe"
+                    , onInput (UpdateField GivenRPE)
                     , type_ "number"
-                    , value
-                        (String.fromInt model.givenRPE)
+                    , value model.givenRPE
                     ]
                     []
                 ]
@@ -194,13 +298,10 @@ view model =
                     [ text "Reps " ]
                 , input
                     [ class "reps"
-                    , id
-                        "desired-reps"
+                    , id "desired-reps"
+                    , onInput (UpdateField TargetReps)
                     , type_ "number"
-                    , value
-                        (String.fromInt
-                            model.targetReps
-                        )
+                    , value model.targetReps
                     ]
                     []
                 ]
@@ -212,13 +313,10 @@ view model =
                     [ text "RPE " ]
                 , input
                     [ class "rpe"
-                    , id
-                        "desired-rpe"
+                    , id "desired-rpe"
                     , type_ "number"
-                    , value
-                        (String.fromInt
-                            model.targetRPE
-                        )
+                    , value model.targetRPE
+                    , onInput (UpdateField TargetRPE)
                     ]
                     []
                 ]
@@ -227,12 +325,12 @@ view model =
             [ h3 []
                 [ text "Target weight: "
                 , span [ id "target-weight" ]
-                    [ text (showTargetFloat model.targetWeight) ]
+                    [ text (getTargetWeight model.errors model.targetWeight) ]
                 ]
             , h3 []
                 [ text "Estimated 1RM: "
                 , span [ id "e1RM" ]
-                    [ text (showTargetFloat model.estimated1RM) ]
+                    [ text (getEstimated1RM model.errors model.estimated1RM) ]
                 ]
             ]
         , div [ class "options" ]
@@ -252,6 +350,7 @@ view model =
         , div [ class "footer" ]
             [ span []
                 [ text "© 2020 Zack Youngren" ]
+            , br [] []
             , text "Code on "
             , a [ href "https://www.github.com/zack/rpe-elm" ]
                 [ text "GitHub" ]
