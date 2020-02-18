@@ -98,8 +98,6 @@ type alias Model =
     , givenRPE : String
     , targetReps : String
     , targetRPE : String
-    , targetWeight : String
-    , estimated1RM : String
     , errors : List Error
     }
 
@@ -112,8 +110,6 @@ initialModel rpeTable =
     , givenRPE = ""
     , targetReps = ""
     , targetRPE = ""
-    , targetWeight = ""
-    , estimated1RM = ""
     , errors =
         [ Missing GivenWeight
         , Missing GivenReps
@@ -128,76 +124,162 @@ initialModel rpeTable =
 ---- UPDATE ----
 
 
-addUniqueItemToList : a -> List a -> List a
-addUniqueItemToList item list =
-    item :: filterAllItemFromList item list
+getFieldFromError : Error -> Field
+getFieldFromError error =
+    case error of
+        Missing field ->
+            field
+
+        Bad field ->
+            field
 
 
-filterAllItemFromList : a -> List a -> List a
-filterAllItemFromList item list =
-    List.filter (\i -> i /= item) list
+addErrorWithUniqueFieldToErrors : Error -> List Error -> List Error
+addErrorWithUniqueFieldToErrors error errors =
+    case error of
+        Missing field ->
+            error :: filterAllFieldFromErrors field errors
+
+        Bad field ->
+            error :: filterAllFieldFromErrors field errors
 
 
-getNewIntErrors : List Error -> String -> Field -> List Error
-getNewIntErrors errors stringInt fieldType =
-    let
-        parsedInt =
-            String.toInt stringInt
-
-        cleanErrors =
-            filterAllItemFromList (Missing fieldType) errors
-    in
-    if parsedInt == Nothing then
-        addUniqueItemToList (Bad fieldType) cleanErrors
-
-    else
-        filterAllItemFromList (Bad fieldType) cleanErrors
+filterAllFieldFromErrors : Field -> List Error -> List Error
+filterAllFieldFromErrors field list =
+    List.filter (\err -> getFieldFromError err /= field) list
 
 
-getNewFloatErrors : List Error -> String -> Field -> List Error
-getNewFloatErrors errors stringFloat fieldType =
+
+-- getNewIntErrors : List Error -> String -> Field -> List Error
+-- getNewIntErrors errors stringInt field =
+--     let
+--         parsedInt =
+--             String.toInt stringInt
+--
+--         cleanErrors =
+--             filterAllFieldFromErrors field errors
+--     in
+--     if parsedInt == Nothing then
+--         addErrorWithUniqueFieldToErrors (Bad field) cleanErrors
+--
+--     else
+--         cleanErrors
+-- getNewFloatErrors : List Error -> String -> Field -> List Error
+-- getNewFloatErrors errors stringFloat field =
+--     let
+--         parsedFloat =
+--             String.toFloat stringFloat
+--
+--         cleanErrors =
+--             filterAllFieldFromErrors field errors
+--     in
+--     if parsedFloat == Nothing then
+--         addErrorWithUniqueFieldToErrors (Bad field) cleanErrors
+--
+--     else
+--         filterAllFieldFromErrors field cleanErrors
+
+
+validateWeight : List Error -> String -> Field -> List Error
+validateWeight errors weight field =
     let
         parsedFloat =
-            String.toInt stringFloat
+            String.toFloat weight
 
         cleanErrors =
-            filterAllItemFromList (Missing fieldType) errors
+            filterAllFieldFromErrors field errors
     in
-    if parsedFloat == Nothing then
-        addUniqueItemToList (Bad fieldType) cleanErrors
+    case parsedFloat of
+        Nothing ->
+            addErrorWithUniqueFieldToErrors (Bad field) cleanErrors
 
-    else
-        filterAllItemFromList (Bad fieldType) cleanErrors
+        Just float ->
+            if float <= 0 then
+                addErrorWithUniqueFieldToErrors (Bad field) cleanErrors
+
+            else
+                cleanErrors
+
+
+validateReps : List Error -> String -> Field -> List Error
+validateReps errors reps field =
+    let
+        parsedInt =
+            String.toInt reps
+
+        cleanErrors =
+            filterAllFieldFromErrors field errors
+    in
+    case parsedInt of
+        Nothing ->
+            addErrorWithUniqueFieldToErrors (Bad field) cleanErrors
+
+        Just int ->
+            if int < 1 || int > 12 then
+                addErrorWithUniqueFieldToErrors (Bad field) cleanErrors
+
+            else
+                cleanErrors
+
+
+validateRPE : List Error -> String -> Field -> List Error
+validateRPE errors reps field =
+    let
+        parsedInt =
+            String.toInt reps
+
+        cleanErrors =
+            filterAllFieldFromErrors field errors
+    in
+    case parsedInt of
+        Nothing ->
+            addErrorWithUniqueFieldToErrors (Bad field) cleanErrors
+
+        Just int ->
+            if int < 6 || int > 10 then
+                addErrorWithUniqueFieldToErrors (Bad field) cleanErrors
+
+            else
+                cleanErrors
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        UpdateField field value ->
+        UpdateField GivenWeight value ->
             let
                 newErrors =
-                    case field of
-                        GivenWeight ->
-                            getNewIntErrors model.errors value field
-
-                        _ ->
-                            getNewIntErrors model.errors value field
+                    validateWeight model.errors value GivenWeight
             in
-            case field of
-                GivenWeight ->
-                    ( { model | givenWeight = value, errors = newErrors }, Cmd.none )
+            ( { model | givenWeight = value, errors = newErrors }, Cmd.none )
 
-                GivenReps ->
-                    ( { model | givenReps = value, errors = newErrors }, Cmd.none )
+        UpdateField GivenReps value ->
+            let
+                newErrors =
+                    validateReps model.errors value GivenReps
+            in
+            ( { model | givenReps = value, errors = newErrors }, Cmd.none )
 
-                GivenRPE ->
-                    ( { model | givenRPE = value, errors = newErrors }, Cmd.none )
+        UpdateField GivenRPE value ->
+            let
+                newErrors =
+                    validateRPE model.errors value GivenRPE
+            in
+            ( { model | givenRPE = value, errors = newErrors }, Cmd.none )
 
-                TargetReps ->
-                    ( { model | targetReps = value, errors = newErrors }, Cmd.none )
+        UpdateField TargetReps value ->
+            let
+                newErrors =
+                    validateReps model.errors value TargetReps
+            in
+            ( { model | targetReps = value, errors = newErrors }, Cmd.none )
 
-                TargetRPE ->
-                    ( { model | targetRPE = value, errors = newErrors }, Cmd.none )
+        UpdateField TargetRPE value ->
+            let
+                newErrors =
+                    validateRPE model.errors value TargetRPE
+            in
+            ( { model | targetRPE = value, errors = newErrors }, Cmd.none )
 
 
 
@@ -213,18 +295,18 @@ showTargetFloat number =
         String.fromFloat number
 
 
-getTargetWeight : List Error -> String -> String
-getTargetWeight errors weight =
-    if List.length errors > 0 then
+getTargetWeight : Model -> String
+getTargetWeight model =
+    if List.length model.errors > 0 then
         "..."
 
     else
         "number"
 
 
-getEstimated1RM : List Error -> String -> String
-getEstimated1RM errors e1rm =
-    if List.length errors > 0 then
+getEstimated1RM : Model -> String
+getEstimated1RM model =
+    if List.length model.errors > 0 then
         "..."
 
     else
@@ -325,12 +407,12 @@ view model =
             [ h3 []
                 [ text "Target weight: "
                 , span [ id "target-weight" ]
-                    [ text (getTargetWeight model.errors model.targetWeight) ]
+                    [ text (getTargetWeight model) ]
                 ]
             , h3 []
                 [ text "Estimated 1RM: "
                 , span [ id "e1RM" ]
-                    [ text (getEstimated1RM model.errors model.estimated1RM) ]
+                    [ text (getEstimated1RM model) ]
                 ]
             ]
         , div [ class "options" ]
