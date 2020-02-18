@@ -98,6 +98,7 @@ type alias Model =
     , givenRPE : String
     , targetReps : String
     , targetRPE : String
+    , estimated1RM : String
     , errors : List Error
     }
 
@@ -110,6 +111,7 @@ initialModel rpeTable =
     , givenRPE = ""
     , targetReps = ""
     , targetRPE = ""
+    , estimated1RM = ""
     , errors =
         [ Missing GivenWeight
         , Missing GivenReps
@@ -246,26 +248,35 @@ validateRPE errors reps field =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        UpdateField GivenWeight value ->
+        UpdateField GivenWeight weight ->
             let
                 newErrors =
-                    validateWeight model.errors value GivenWeight
-            in
-            ( { model | givenWeight = value, errors = newErrors }, Cmd.none )
+                    validateWeight model.errors weight GivenWeight
 
-        UpdateField GivenReps value ->
-            let
-                newErrors =
-                    validateReps model.errors value GivenReps
+                new1rm =
+                    getEstimated1RM model.givenReps weight model.givenRPE model.rpeTable
             in
-            ( { model | givenReps = value, errors = newErrors }, Cmd.none )
+            ( { model | givenWeight = weight, estimated1RM = new1rm, errors = newErrors }, Cmd.none )
 
-        UpdateField GivenRPE value ->
+        UpdateField GivenReps reps ->
             let
                 newErrors =
-                    validateRPE model.errors value GivenRPE
+                    validateReps model.errors reps GivenReps
+
+                new1rm =
+                    getEstimated1RM reps model.givenWeight model.givenRPE model.rpeTable
             in
-            ( { model | givenRPE = value, errors = newErrors }, Cmd.none )
+            ( { model | givenReps = reps, estimated1RM = new1rm, errors = newErrors }, Cmd.none )
+
+        UpdateField GivenRPE rpe ->
+            let
+                newErrors =
+                    validateRPE model.errors rpe GivenRPE
+
+                new1rm =
+                    getEstimated1RM model.givenReps model.givenWeight rpe model.rpeTable
+            in
+            ( { model | givenRPE = rpe, estimated1RM = new1rm, errors = newErrors }, Cmd.none )
 
         UpdateField TargetReps value ->
             let
@@ -304,13 +315,85 @@ getTargetWeight model =
         "number"
 
 
-getEstimated1RM : Model -> String
-getEstimated1RM model =
-    if List.length model.errors > 0 then
-        "..."
+getEstimated1RM : String -> String -> String -> RPETable -> String
+getEstimated1RM givenReps givenWeight givenRPE rpeTable =
+    let
+        givenRPEDecimal =
+            getValueForRepCount
+                (String.toInt givenReps)
+                (getRepsForRPE (String.toInt givenRPE) rpeTable)
 
-    else
-        "number"
+        floatWeight =
+            String.toFloat givenWeight
+    in
+    case ( givenRPEDecimal, floatWeight ) of
+        ( Just rpe, Just weight ) ->
+            String.fromFloat (rpe * weight)
+
+        _ ->
+            "..."
+
+
+getRepsForRPE : Maybe Int -> RPETable -> Maybe RPEReps
+getRepsForRPE rpe rpeTable =
+    case rpe of
+        Just 6 ->
+            Just rpeTable.rpe6
+
+        Just 7 ->
+            Just rpeTable.rpe7
+
+        Just 8 ->
+            Just rpeTable.rpe8
+
+        Just 9 ->
+            Just rpeTable.rpe9
+
+        Just 10 ->
+            Just rpeTable.rpe10
+
+        _ ->
+            Nothing
+
+
+getValueForRepCount : Maybe Int -> Maybe RPEReps -> Maybe Float
+getValueForRepCount repCount rpeReps =
+    case ( repCount, rpeReps ) of
+        ( Just 1, Just reps ) ->
+            Just reps.reps1
+
+        ( Just 2, Just reps ) ->
+            Just reps.reps2
+
+        ( Just 3, Just reps ) ->
+            Just reps.reps3
+
+        ( Just 4, Just reps ) ->
+            Just reps.reps4
+
+        ( Just 5, Just reps ) ->
+            Just reps.reps5
+
+        ( Just 6, Just reps ) ->
+            Just reps.reps7
+
+        ( Just 8, Just reps ) ->
+            Just reps.reps8
+
+        ( Just 9, Just reps ) ->
+            Just reps.reps9
+
+        ( Just 10, Just reps ) ->
+            Just reps.reps10
+
+        ( Just 11, Just reps ) ->
+            Just reps.reps11
+
+        ( Just 12, Just reps ) ->
+            Just reps.reps12
+
+        _ ->
+            Nothing
 
 
 view : Model -> Html Msg
@@ -412,7 +495,7 @@ view model =
             , h3 []
                 [ text "Estimated 1RM: "
                 , span [ id "e1RM" ]
-                    [ text (getEstimated1RM model) ]
+                    [ text model.estimated1RM ]
                 ]
             ]
         , div [ class "options" ]
