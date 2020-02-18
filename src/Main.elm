@@ -99,6 +99,7 @@ type alias Model =
     , targetReps : String
     , targetRPE : String
     , estimated1RM : String
+    , targetWeight : String
     , errors : List Error
     }
 
@@ -111,7 +112,8 @@ initialModel rpeTable =
     , givenRPE = ""
     , targetReps = ""
     , targetRPE = ""
-    , estimated1RM = ""
+    , estimated1RM = "..."
+    , targetWeight = "..."
     , errors =
         [ Missing GivenWeight
         , Missing GivenReps
@@ -149,37 +151,6 @@ addErrorWithUniqueFieldToErrors error errors =
 filterAllFieldFromErrors : Field -> List Error -> List Error
 filterAllFieldFromErrors field list =
     List.filter (\err -> getFieldFromError err /= field) list
-
-
-
--- getNewIntErrors : List Error -> String -> Field -> List Error
--- getNewIntErrors errors stringInt field =
---     let
---         parsedInt =
---             String.toInt stringInt
---
---         cleanErrors =
---             filterAllFieldFromErrors field errors
---     in
---     if parsedInt == Nothing then
---         addErrorWithUniqueFieldToErrors (Bad field) cleanErrors
---
---     else
---         cleanErrors
--- getNewFloatErrors : List Error -> String -> Field -> List Error
--- getNewFloatErrors errors stringFloat field =
---     let
---         parsedFloat =
---             String.toFloat stringFloat
---
---         cleanErrors =
---             filterAllFieldFromErrors field errors
---     in
---     if parsedFloat == Nothing then
---         addErrorWithUniqueFieldToErrors (Bad field) cleanErrors
---
---     else
---         filterAllFieldFromErrors field cleanErrors
 
 
 validateWeight : List Error -> String -> Field -> List Error
@@ -250,47 +221,53 @@ update msg model =
     case msg of
         UpdateField GivenWeight weight ->
             let
-                newErrors =
+                errors =
                     validateWeight model.errors weight GivenWeight
 
-                new1rm =
+                estimated1RM =
                     getEstimated1RM model.givenReps weight model.givenRPE model.rpeTable
             in
-            ( { model | givenWeight = weight, estimated1RM = new1rm, errors = newErrors }, Cmd.none )
+            ( { model | givenWeight = weight, estimated1RM = estimated1RM, errors = errors }, Cmd.none )
 
         UpdateField GivenReps reps ->
             let
-                newErrors =
+                errors =
                     validateReps model.errors reps GivenReps
 
-                new1rm =
+                estimated1RM =
                     getEstimated1RM reps model.givenWeight model.givenRPE model.rpeTable
             in
-            ( { model | givenReps = reps, estimated1RM = new1rm, errors = newErrors }, Cmd.none )
+            ( { model | givenReps = reps, estimated1RM = estimated1RM, errors = errors }, Cmd.none )
 
         UpdateField GivenRPE rpe ->
             let
-                newErrors =
+                errors =
                     validateRPE model.errors rpe GivenRPE
 
-                new1rm =
+                estimated1RM =
                     getEstimated1RM model.givenReps model.givenWeight rpe model.rpeTable
             in
-            ( { model | givenRPE = rpe, estimated1RM = new1rm, errors = newErrors }, Cmd.none )
+            ( { model | givenRPE = rpe, estimated1RM = estimated1RM, errors = errors }, Cmd.none )
 
-        UpdateField TargetReps value ->
+        UpdateField TargetReps reps ->
             let
-                newErrors =
-                    validateReps model.errors value TargetReps
-            in
-            ( { model | targetReps = value, errors = newErrors }, Cmd.none )
+                errors =
+                    validateReps model.errors reps TargetReps
 
-        UpdateField TargetRPE value ->
-            let
-                newErrors =
-                    validateRPE model.errors value TargetRPE
+                targetWeight =
+                    getTargetWeight reps model.targetRPE model.estimated1RM model.rpeTable
             in
-            ( { model | targetRPE = value, errors = newErrors }, Cmd.none )
+            ( { model | targetReps = reps, targetWeight = targetWeight, errors = errors }, Cmd.none )
+
+        UpdateField TargetRPE rpe ->
+            let
+                errors =
+                    validateRPE model.errors rpe TargetRPE
+
+                targetWeight =
+                    getTargetWeight model.targetReps rpe model.estimated1RM model.rpeTable
+            in
+            ( { model | targetRPE = rpe, targetWeight = targetWeight, errors = errors }, Cmd.none )
 
 
 
@@ -306,15 +283,6 @@ showTargetFloat number =
         String.fromFloat number
 
 
-getTargetWeight : Model -> String
-getTargetWeight model =
-    if List.length model.errors > 0 then
-        "..."
-
-    else
-        "number"
-
-
 getEstimated1RM : String -> String -> String -> RPETable -> String
 getEstimated1RM givenReps givenWeight givenRPE rpeTable =
     let
@@ -328,7 +296,26 @@ getEstimated1RM givenReps givenWeight givenRPE rpeTable =
     in
     case ( givenRPEDecimal, floatWeight ) of
         ( Just rpe, Just weight ) ->
-            String.fromFloat (rpe * weight)
+            String.fromInt (round (weight / rpe))
+
+        _ ->
+            "..."
+
+
+getTargetWeight : String -> String -> String -> RPETable -> String
+getTargetWeight targetReps targetRPE estimated1RM rpeTable =
+    let
+        targetRPEDecimal =
+            getValueForRepCount
+                (String.toInt targetReps)
+                (getRepsForRPE (String.toInt targetRPE) rpeTable)
+
+        floatEstimated1RM =
+            String.toFloat estimated1RM
+    in
+    case ( targetRPEDecimal, floatEstimated1RM ) of
+        ( Just rpe, Just e1rm ) ->
+            String.fromInt (round (rpe * e1rm))
 
         _ ->
             "..."
@@ -490,7 +477,7 @@ view model =
             [ h3 []
                 [ text "Target weight: "
                 , span [ id "target-weight" ]
-                    [ text (getTargetWeight model) ]
+                    [ text model.targetWeight ]
                 ]
             , h3 []
                 [ text "Estimated 1RM: "
