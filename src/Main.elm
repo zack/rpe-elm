@@ -246,11 +246,64 @@ roundingFromString roundingString =
             PointOhOne
 
 
+getRoundAsFloat : Rounding -> Float
+getRoundAsFloat rounder =
+    case rounder of
+        Five ->
+            5
+
+        TwoPointFive ->
+            2.5
+
+        One ->
+            1
+
+        PointOhOne ->
+            0.01
+
+
+round_ : Rounding -> Float -> Float
+round_ rounder val =
+    let
+        rounderFloat =
+            getRoundAsFloat rounder
+    in
+    toFloat (round (val / rounderFloat)) * rounderFloat
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         UpdateRounding roundingString ->
-            ( { model | rounding = roundingFromString roundingString }, Cmd.none )
+            let
+                rounding =
+                    roundingFromString roundingString
+
+                estimated1RM =
+                    getEstimated1RM
+                        rounding
+                        model.givenReps
+                        model.givenWeight
+                        model.givenRPE
+                        model.rpeTable
+
+                targetWeight =
+                    getTargetWeight
+                        rounding
+                        model.givenReps
+                        model.givenWeight
+                        model.givenRPE
+                        model.targetReps
+                        model.targetRPE
+                        model.rpeTable
+            in
+            ( { model
+                | rounding = rounding
+                , estimated1RM = estimated1RM
+                , targetWeight = targetWeight
+              }
+            , Cmd.none
+            )
 
         UpdateField GivenWeight weight ->
             let
@@ -258,9 +311,15 @@ update msg model =
                     validateWeight model.errors weight GivenWeight
 
                 estimated1RM =
-                    getEstimated1RM model.givenReps weight model.givenRPE model.rpeTable
+                    getEstimated1RM model.rounding model.givenReps weight model.givenRPE model.rpeTable
             in
-            ( { model | givenWeight = weight, estimated1RM = estimated1RM, errors = errors }, Cmd.none )
+            ( { model
+                | givenWeight = weight
+                , estimated1RM = estimated1RM
+                , errors = errors
+              }
+            , Cmd.none
+            )
 
         UpdateField GivenReps reps ->
             let
@@ -268,9 +327,15 @@ update msg model =
                     validateReps model.errors reps GivenReps
 
                 estimated1RM =
-                    getEstimated1RM reps model.givenWeight model.givenRPE model.rpeTable
+                    getEstimated1RM model.rounding reps model.givenWeight model.givenRPE model.rpeTable
             in
-            ( { model | givenReps = reps, estimated1RM = estimated1RM, errors = errors }, Cmd.none )
+            ( { model
+                | givenReps = reps
+                , estimated1RM = estimated1RM
+                , errors = errors
+              }
+            , Cmd.none
+            )
 
         UpdateField GivenRPE rpe ->
             let
@@ -278,9 +343,15 @@ update msg model =
                     validateRPE model.errors rpe GivenRPE
 
                 estimated1RM =
-                    getEstimated1RM model.givenReps model.givenWeight rpe model.rpeTable
+                    getEstimated1RM model.rounding model.givenReps model.givenWeight rpe model.rpeTable
             in
-            ( { model | givenRPE = rpe, estimated1RM = estimated1RM, errors = errors }, Cmd.none )
+            ( { model
+                | givenRPE = rpe
+                , estimated1RM = estimated1RM
+                , errors = errors
+              }
+            , Cmd.none
+            )
 
         UpdateField TargetReps reps ->
             let
@@ -288,9 +359,22 @@ update msg model =
                     validateReps model.errors reps TargetReps
 
                 targetWeight =
-                    getTargetWeight reps model.targetRPE model.estimated1RM model.rpeTable
+                    getTargetWeight
+                        model.rounding
+                        model.givenReps
+                        model.givenWeight
+                        model.givenRPE
+                        reps
+                        model.targetRPE
+                        model.rpeTable
             in
-            ( { model | targetReps = reps, targetWeight = targetWeight, errors = errors }, Cmd.none )
+            ( { model
+                | targetReps = reps
+                , targetWeight = targetWeight
+                , errors = errors
+              }
+            , Cmd.none
+            )
 
         UpdateField TargetRPE rpe ->
             let
@@ -298,9 +382,22 @@ update msg model =
                     validateRPE model.errors rpe TargetRPE
 
                 targetWeight =
-                    getTargetWeight model.targetReps rpe model.estimated1RM model.rpeTable
+                    getTargetWeight
+                        model.rounding
+                        model.givenReps
+                        model.givenWeight
+                        model.givenRPE
+                        model.givenReps
+                        rpe
+                        model.rpeTable
             in
-            ( { model | targetRPE = rpe, targetWeight = targetWeight, errors = errors }, Cmd.none )
+            ( { model
+                | targetRPE = rpe
+                , targetWeight = targetWeight
+                , errors = errors
+              }
+            , Cmd.none
+            )
 
 
 
@@ -316,8 +413,8 @@ showTargetFloat number =
         String.fromFloat number
 
 
-getEstimated1RM : String -> String -> String -> RPETable -> String
-getEstimated1RM givenReps givenWeight givenRPE rpeTable =
+getEstimated1RM : Rounding -> String -> String -> String -> RPETable -> String
+getEstimated1RM rounding givenReps givenWeight givenRPE rpeTable =
     let
         givenRPEDecimal =
             getValueForRepCount
@@ -329,26 +426,36 @@ getEstimated1RM givenReps givenWeight givenRPE rpeTable =
     in
     case ( givenRPEDecimal, floatWeight ) of
         ( Just rpe, Just weight ) ->
-            String.fromInt (round (weight / rpe))
+            String.fromFloat (round_ rounding (weight / rpe))
 
         _ ->
             "..."
 
 
-getTargetWeight : String -> String -> String -> RPETable -> String
-getTargetWeight targetReps targetRPE estimated1RM rpeTable =
+{-| Calculate our own e1rm here instead of passing it in because we want to make
+sure we are always using an unrounded e1rm to calculate our target weight
+-}
+getTargetWeight : Rounding -> String -> String -> String -> String -> String -> RPETable -> String
+getTargetWeight rounding givenReps givenWeight givenRPE targetReps targetRPE rpeTable =
     let
         targetRPEDecimal =
             getValueForRepCount
                 (String.toInt targetReps)
                 (getRepsForRPE (String.toInt targetRPE) rpeTable)
 
-        floatEstimated1RM =
-            String.toFloat estimated1RM
+        estimated1RM =
+            String.toFloat
+                (getEstimated1RM
+                    PointOhOne
+                    givenReps
+                    givenWeight
+                    givenRPE
+                    rpeTable
+                )
     in
-    case ( targetRPEDecimal, floatEstimated1RM ) of
+    case ( targetRPEDecimal, estimated1RM ) of
         ( Just rpe, Just e1rm ) ->
-            String.fromInt (round (rpe * e1rm))
+            String.fromFloat (round_ rounding (rpe * e1rm))
 
         _ ->
             "..."
@@ -520,7 +627,7 @@ view model =
             ]
         , div [ class "options" ]
             [ label [ class "rounding", for "rounding" ]
-                [ text "Rounding: " ]
+                [ text "Rounding:\u{00A0}" ]
             , select [ class "rounding", id "rounding", name "rounding", onInput UpdateRounding ]
                 [ option [ value "5" ]
                     [ text "5.0" ]
