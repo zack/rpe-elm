@@ -502,6 +502,9 @@ getValueForRepCount repCount rpeReps =
             Just reps.reps5
 
         ( Just 6, Just reps ) ->
+            Just reps.reps6
+
+        ( Just 7, Just reps ) ->
             Just reps.reps7
 
         ( Just 8, Just reps ) ->
