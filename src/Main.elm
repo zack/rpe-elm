@@ -4,7 +4,7 @@ import Browser
 import Debug
 import Html exposing (..)
 import Html.Attributes exposing (class, for, href, id, name, step, type_, value)
-import Html.Events exposing (onInput)
+import Html.Events exposing (on, onInput)
 import Json.Decode exposing (Decoder, float, succeed)
 import Json.Decode.Pipeline exposing (required)
 import List
@@ -70,6 +70,13 @@ type alias RPEReps =
     }
 
 
+type Rounding
+    = Five
+    | TwoPointFive
+    | One
+    | PointOhOne
+
+
 type Field
     = GivenWeight
     | GivenReps
@@ -85,6 +92,7 @@ type Error
 
 type Msg
     = UpdateField Field String
+    | UpdateRounding String
 
 
 
@@ -92,35 +100,41 @@ type Msg
 
 
 type alias Model =
-    { rpeTable : RPETable
-    , givenWeight : String
-    , givenReps : String
-    , givenRPE : String
-    , targetReps : String
-    , targetRPE : String
+    { errors : List Error
     , estimated1RM : String
+    , givenRPE : String
+    , givenReps : String
+    , givenWeight : String
+    , rounding : Rounding
+    , rpeTable : RPETable
+    , targetRPE : String
+    , targetReps : String
     , targetWeight : String
-    , errors : List Error
     }
+
+
+initialErrors : List Error
+initialErrors =
+    [ Missing GivenWeight
+    , Missing GivenReps
+    , Missing GivenRPE
+    , Missing TargetReps
+    , Missing TargetRPE
+    ]
 
 
 initialModel : RPETable -> Model
 initialModel rpeTable =
-    { rpeTable = rpeTable
-    , givenWeight = ""
-    , givenReps = ""
-    , givenRPE = ""
-    , targetReps = ""
-    , targetRPE = ""
+    { errors = initialErrors
     , estimated1RM = "..."
+    , givenRPE = ""
+    , givenReps = ""
+    , givenWeight = ""
+    , rounding = Five
+    , rpeTable = rpeTable
+    , targetRPE = ""
+    , targetReps = ""
     , targetWeight = "..."
-    , errors =
-        [ Missing GivenWeight
-        , Missing GivenReps
-        , Missing GivenRPE
-        , Missing TargetReps
-        , Missing TargetRPE
-        ]
     }
 
 
@@ -216,9 +230,28 @@ validateRPE errors reps field =
                 cleanErrors
 
 
+roundingFromString : String -> Rounding
+roundingFromString roundingString =
+    case roundingString of
+        "5" ->
+            Five
+
+        "2.5" ->
+            TwoPointFive
+
+        "1" ->
+            One
+
+        _ ->
+            PointOhOne
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        UpdateRounding roundingString ->
+            ( { model | rounding = roundingFromString roundingString }, Cmd.none )
+
         UpdateField GivenWeight weight ->
             let
                 errors =
@@ -488,7 +521,7 @@ view model =
         , div [ class "options" ]
             [ label [ class "rounding", for "rounding" ]
                 [ text "Rounding: " ]
-            , select [ class "rounding", id "rounding", name "rounding" ]
+            , select [ class "rounding", id "rounding", name "rounding", onInput UpdateRounding ]
                 [ option [ value "5" ]
                     [ text "5.0" ]
                 , option [ value "2.5" ]
