@@ -3,7 +3,7 @@ module Main exposing (..)
 import Browser
 import Debug
 import Html exposing (..)
-import Html.Attributes exposing (class, for, href, id, name, step, type_, value)
+import Html.Attributes exposing (class, classList, for, href, id, name, step, type_, value)
 import Html.Events exposing (on, onInput)
 import Json.Decode exposing (Decoder, float, succeed)
 import Json.Decode.Pipeline exposing (required)
@@ -178,7 +178,11 @@ validateWeight errors weight field =
     in
     case parsedFloat of
         Nothing ->
-            addErrorWithUniqueFieldToErrors (Bad field) cleanErrors
+            if weight == "" then
+                addErrorWithUniqueFieldToErrors (Missing field) cleanErrors
+
+            else
+                addErrorWithUniqueFieldToErrors (Bad field) cleanErrors
 
         Just float ->
             if float <= 0 then
@@ -199,7 +203,11 @@ validateReps errors reps field =
     in
     case parsedInt of
         Nothing ->
-            addErrorWithUniqueFieldToErrors (Bad field) cleanErrors
+            if reps == "" then
+                addErrorWithUniqueFieldToErrors (Missing field) cleanErrors
+
+            else
+                addErrorWithUniqueFieldToErrors (Bad field) cleanErrors
 
         Just int ->
             if int < 1 || int > 12 then
@@ -220,7 +228,11 @@ validateRPE errors reps field =
     in
     case parsedInt of
         Nothing ->
-            addErrorWithUniqueFieldToErrors (Bad field) cleanErrors
+            if reps == "" then
+                addErrorWithUniqueFieldToErrors (Missing field) cleanErrors
+
+            else
+                addErrorWithUniqueFieldToErrors (Bad field) cleanErrors
 
         Just int ->
             if int < 6 || int > 10 then
@@ -278,123 +290,59 @@ update msg model =
             let
                 rounding =
                     roundingFromString roundingString
-
-                estimated1RM =
-                    getEstimated1RM
-                        rounding
-                        model.givenReps
-                        model.givenWeight
-                        model.givenRPE
-                        model.rpeTable
-
-                targetWeight =
-                    getTargetWeight
-                        rounding
-                        model.givenReps
-                        model.givenWeight
-                        model.givenRPE
-                        model.targetReps
-                        model.targetRPE
-                        model.rpeTable
             in
             ( { model
                 | rounding = rounding
-                , estimated1RM = estimated1RM
-                , targetWeight = targetWeight
+                , estimated1RM = getEstimated1RM { model | rounding = rounding }
+                , targetWeight = getTargetWeight { model | rounding = rounding }
               }
             , Cmd.none
             )
 
         UpdateField GivenWeight weight ->
-            let
-                errors =
-                    validateWeight model.errors weight GivenWeight
-
-                estimated1RM =
-                    getEstimated1RM model.rounding model.givenReps weight model.givenRPE model.rpeTable
-            in
             ( { model
                 | givenWeight = weight
-                , estimated1RM = estimated1RM
-                , errors = errors
+                , estimated1RM = getEstimated1RM { model | givenWeight = weight }
+                , targetWeight = getTargetWeight { model | givenWeight = weight }
+                , errors = validateWeight model.errors weight GivenWeight
               }
             , Cmd.none
             )
 
         UpdateField GivenReps reps ->
-            let
-                errors =
-                    validateReps model.errors reps GivenReps
-
-                estimated1RM =
-                    getEstimated1RM model.rounding reps model.givenWeight model.givenRPE model.rpeTable
-            in
             ( { model
                 | givenReps = reps
-                , estimated1RM = estimated1RM
-                , errors = errors
+                , estimated1RM = getEstimated1RM { model | givenReps = reps }
+                , targetWeight = getTargetWeight { model | givenReps = reps }
+                , errors = validateReps model.errors reps GivenReps
               }
             , Cmd.none
             )
 
         UpdateField GivenRPE rpe ->
-            let
-                errors =
-                    validateRPE model.errors rpe GivenRPE
-
-                estimated1RM =
-                    getEstimated1RM model.rounding model.givenReps model.givenWeight rpe model.rpeTable
-            in
             ( { model
                 | givenRPE = rpe
-                , estimated1RM = estimated1RM
-                , errors = errors
+                , estimated1RM = getEstimated1RM { model | givenRPE = rpe }
+                , targetWeight = getTargetWeight { model | givenRPE = rpe }
+                , errors = validateRPE model.errors rpe GivenRPE
               }
             , Cmd.none
             )
 
         UpdateField TargetReps reps ->
-            let
-                errors =
-                    validateReps model.errors reps TargetReps
-
-                targetWeight =
-                    getTargetWeight
-                        model.rounding
-                        model.givenReps
-                        model.givenWeight
-                        model.givenRPE
-                        reps
-                        model.targetRPE
-                        model.rpeTable
-            in
             ( { model
                 | targetReps = reps
-                , targetWeight = targetWeight
-                , errors = errors
+                , targetWeight = getTargetWeight { model | targetReps = reps }
+                , errors = validateReps model.errors reps TargetReps
               }
             , Cmd.none
             )
 
         UpdateField TargetRPE rpe ->
-            let
-                errors =
-                    validateRPE model.errors rpe TargetRPE
-
-                targetWeight =
-                    getTargetWeight
-                        model.rounding
-                        model.givenReps
-                        model.givenWeight
-                        model.givenRPE
-                        model.givenReps
-                        rpe
-                        model.rpeTable
-            in
             ( { model
                 | targetRPE = rpe
-                , targetWeight = targetWeight
-                , errors = errors
+                , targetWeight = getTargetWeight { model | targetRPE = rpe }
+                , errors = validateRPE model.errors rpe TargetRPE
               }
             , Cmd.none
             )
@@ -413,20 +361,20 @@ showTargetFloat number =
         String.fromFloat number
 
 
-getEstimated1RM : Rounding -> String -> String -> String -> RPETable -> String
-getEstimated1RM rounding givenReps givenWeight givenRPE rpeTable =
+getEstimated1RM : Model -> String
+getEstimated1RM model =
     let
         givenRPEDecimal =
             getValueForRepCount
-                (String.toInt givenReps)
-                (getRepsForRPE (String.toInt givenRPE) rpeTable)
+                (String.toInt model.givenReps)
+                (getRepsForRPE (String.toInt model.givenRPE) model.rpeTable)
 
         floatWeight =
-            String.toFloat givenWeight
+            String.toFloat model.givenWeight
     in
-    case ( givenRPEDecimal, floatWeight ) of
-        ( Just rpe, Just weight ) ->
-            String.fromFloat (round_ rounding (weight / rpe))
+    case ( givenRPEDecimal, floatWeight, model.errors ) of
+        ( Just rpe, Just weight, [] ) ->
+            String.fromFloat (round_ model.rounding (weight / rpe))
 
         _ ->
             "..."
@@ -435,30 +383,78 @@ getEstimated1RM rounding givenReps givenWeight givenRPE rpeTable =
 {-| Calculate our own e1rm here instead of passing it in because we want to make
 sure we are always using an unrounded e1rm to calculate our target weight
 -}
-getTargetWeight : Rounding -> String -> String -> String -> String -> String -> RPETable -> String
-getTargetWeight rounding givenReps givenWeight givenRPE targetReps targetRPE rpeTable =
+getTargetWeight : Model -> String
+getTargetWeight model =
     let
         targetRPEDecimal =
             getValueForRepCount
-                (String.toInt targetReps)
-                (getRepsForRPE (String.toInt targetRPE) rpeTable)
+                (String.toInt model.targetReps)
+                (getRepsForRPE (String.toInt model.targetRPE) model.rpeTable)
 
         estimated1RM =
             String.toFloat
-                (getEstimated1RM
-                    PointOhOne
-                    givenReps
-                    givenWeight
-                    givenRPE
-                    rpeTable
-                )
+                (getEstimated1RM { model | rounding = PointOhOne })
     in
-    case ( targetRPEDecimal, estimated1RM ) of
-        ( Just rpe, Just e1rm ) ->
-            String.fromFloat (round_ rounding (rpe * e1rm))
+    case ( targetRPEDecimal, estimated1RM, model.errors ) of
+        ( Just rpe, Just e1rm, [] ) ->
+            String.fromFloat (round_ model.rounding (rpe * e1rm))
 
         _ ->
             "..."
+
+
+getErrorText : List Error -> Field -> String
+getErrorText errors field =
+    List.foldr
+        (\error memo ->
+            case error of
+                Bad f ->
+                    if field == f then
+                        if field == GivenWeight then
+                            "Weight must be above 0"
+
+                        else if field == GivenReps then
+                            "Reps must be between 1 and 10"
+
+                        else if field == GivenRPE then
+                            "RPE must be between 6 and 10"
+
+                        else if field == TargetReps then
+                            "Reps must be between 1 and 10"
+
+                        else if field == TargetRPE then
+                            "RPE must be between 6 and 10"
+
+                        else
+                            memo
+
+                    else
+                        memo
+
+                Missing _ ->
+                    memo
+        )
+        ""
+        errors
+
+
+getErrorTextForBadField : Field -> String
+getErrorTextForBadField field =
+    case field of
+        GivenWeight ->
+            "Weight must be above 0"
+
+        GivenReps ->
+            "Reps must be between 1 and 10"
+
+        GivenRPE ->
+            "RPE must be between 6 and 10"
+
+        TargetReps ->
+            "Reps must be between 1 and 10"
+
+        TargetRPE ->
+            "RPE must be between 6 and 10"
 
 
 getRepsForRPE : Maybe Int -> RPETable -> Maybe RPEReps
@@ -528,6 +524,40 @@ getValueForRepCount repCount rpeReps =
 
 view : Model -> Html Msg
 view model =
+    let
+        getErrorTextFunc =
+            getErrorText model.errors
+
+        givenWeightErrorText =
+            getErrorTextFunc GivenWeight
+
+        hasGivenWeightError =
+            givenWeightErrorText /= ""
+
+        givenRepsErrorText =
+            getErrorTextFunc GivenReps
+
+        hasGivenRepsError =
+            givenRepsErrorText /= ""
+
+        givenRPEErrorText =
+            getErrorTextFunc GivenRPE
+
+        hasGivenRPEError =
+            givenRPEErrorText /= ""
+
+        targetRepsErrorText =
+            getErrorTextFunc TargetReps
+
+        hasTargetRepsError =
+            targetRepsErrorText /= ""
+
+        targetRPEErrorText =
+            getErrorTextFunc TargetRPE
+
+        hasTargetRPEError =
+            targetRPEErrorText /= ""
+    in
     div [ id "content" ]
         [ div [ class "header" ]
             [ h1 []
@@ -537,8 +567,15 @@ view model =
             [ h3 []
                 [ text "Starting Numbers " ]
             ]
-        , div [ class "input-row given-weight" ]
-            [ div [ class "error" ] []
+        , div
+            [ class "input-row given-weight"
+            , classList
+                [ ( "error"
+                  , hasGivenWeightError
+                  )
+                ]
+            ]
+            [ div [ class "error" ] [ text givenWeightErrorText ]
             , div [ class "input-container" ]
                 [ label [ for "given-weight" ]
                     [ text "Weight " ]
@@ -552,8 +589,15 @@ view model =
                     []
                 ]
             ]
-        , div [ class "input-row given-reps" ]
-            [ div [ class "error" ] []
+        , div
+            [ class "input-row given-reps"
+            , classList
+                [ ( "error"
+                  , hasGivenRepsError
+                  )
+                ]
+            ]
+            [ div [ class "error" ] [ text givenRepsErrorText ]
             , div [ class "input-container" ]
                 [ label [ for "given-reps" ]
                     [ text "Reps " ]
@@ -567,8 +611,15 @@ view model =
                     []
                 ]
             ]
-        , div [ class "input-row given-rpe bottom-border" ]
-            [ div [ class "error" ] []
+        , div
+            [ class "input-row given-rpe bottom-border"
+            , classList
+                [ ( "error"
+                  , hasGivenRPEError
+                  )
+                ]
+            ]
+            [ div [ class "error" ] [ text givenRPEErrorText ]
             , div [ class "input-container" ]
                 [ label [ for "given-rpe" ]
                     [ text "RPE " ]
@@ -586,8 +637,15 @@ view model =
             [ h3 []
                 [ text "Target Numbers " ]
             ]
-        , div [ class "input-row desired-reps" ]
-            [ div [ class "error" ] []
+        , div
+            [ class "input-row desired-reps"
+            , classList
+                [ ( "error"
+                  , hasTargetRepsError
+                  )
+                ]
+            ]
+            [ div [ class "error" ] [ text targetRepsErrorText ]
             , div [ class "input-container" ]
                 [ label [ for "desired-reps" ]
                     [ text "Reps " ]
@@ -601,8 +659,15 @@ view model =
                     []
                 ]
             ]
-        , div [ class "input-row desired-rpe bottom-border" ]
-            [ div [ class "error" ] []
+        , div
+            [ class "input-row desired-rpe bottom-border"
+            , classList
+                [ ( "error"
+                  , hasTargetRPEError
+                  )
+                ]
+            ]
+            [ div [ class "error" ] [ text targetRPEErrorText ]
             , div [ class "input-container" ]
                 [ label [ for "desired-rpe" ]
                     [ text "RPE " ]
