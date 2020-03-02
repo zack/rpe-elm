@@ -300,49 +300,69 @@ update msg model =
             )
 
         UpdateField GivenWeight weight ->
+            let
+                errors =
+                    validateWeight model.errors weight GivenWeight
+            in
             ( { model
                 | givenWeight = weight
-                , estimated1RM = getEstimated1RM { model | givenWeight = weight }
-                , targetWeight = getTargetWeight { model | givenWeight = weight }
-                , errors = validateWeight model.errors weight GivenWeight
+                , estimated1RM = getEstimated1RM { model | givenWeight = weight, errors = errors }
+                , targetWeight = getTargetWeight { model | givenWeight = weight, errors = errors }
+                , errors = errors
               }
             , Cmd.none
             )
 
         UpdateField GivenReps reps ->
+            let
+                errors =
+                    validateReps model.errors reps GivenReps
+            in
             ( { model
                 | givenReps = reps
-                , estimated1RM = getEstimated1RM { model | givenReps = reps }
-                , targetWeight = getTargetWeight { model | givenReps = reps }
-                , errors = validateReps model.errors reps GivenReps
+                , estimated1RM = getEstimated1RM { model | givenReps = reps, errors = errors }
+                , targetWeight = getTargetWeight { model | givenReps = reps, errors = errors }
+                , errors = errors
               }
             , Cmd.none
             )
 
         UpdateField GivenRPE rpe ->
+            let
+                errors =
+                    validateRPE model.errors rpe GivenRPE
+            in
             ( { model
                 | givenRPE = rpe
-                , estimated1RM = getEstimated1RM { model | givenRPE = rpe }
-                , targetWeight = getTargetWeight { model | givenRPE = rpe }
-                , errors = validateRPE model.errors rpe GivenRPE
+                , estimated1RM = getEstimated1RM { model | givenRPE = rpe, errors = errors }
+                , targetWeight = getTargetWeight { model | givenRPE = rpe, errors = errors }
+                , errors = errors
               }
             , Cmd.none
             )
 
         UpdateField TargetReps reps ->
+            let
+                errors =
+                    validateReps model.errors reps TargetReps
+            in
             ( { model
                 | targetReps = reps
-                , targetWeight = getTargetWeight { model | targetReps = reps }
-                , errors = validateReps model.errors reps TargetReps
+                , targetWeight = getTargetWeight { model | targetReps = reps, errors = errors }
+                , errors = errors
               }
             , Cmd.none
             )
 
         UpdateField TargetRPE rpe ->
+            let
+                errors =
+                    validateRPE model.errors rpe TargetRPE
+            in
             ( { model
                 | targetRPE = rpe
-                , targetWeight = getTargetWeight { model | targetRPE = rpe }
-                , errors = validateRPE model.errors rpe TargetRPE
+                , targetWeight = getTargetWeight { model | targetRPE = rpe, errors = errors }
+                , errors = errors
               }
             , Cmd.none
             )
@@ -371,13 +391,53 @@ getEstimated1RM model =
 
         floatWeight =
             String.toFloat model.givenWeight
+
+        cannotCalculate =
+            errorsPreventE1RM model.errors
     in
-    case ( givenRPEDecimal, floatWeight, model.errors ) of
-        ( Just rpe, Just weight, [] ) ->
+    case ( givenRPEDecimal, floatWeight, cannotCalculate ) of
+        ( Just rpe, Just weight, False ) ->
             String.fromFloat (round_ model.rounding (weight / rpe))
 
         _ ->
             "..."
+
+
+errorsPreventE1RM : List Error -> Bool
+errorsPreventE1RM errors =
+    let
+        foldFunc =
+            \e memo ->
+                case e of
+                    Missing field ->
+                        case field of
+                            GivenWeight ->
+                                True
+
+                            GivenReps ->
+                                True
+
+                            GivenRPE ->
+                                True
+
+                            _ ->
+                                memo
+
+                    Bad field ->
+                        case field of
+                            GivenWeight ->
+                                True
+
+                            GivenReps ->
+                                True
+
+                            GivenRPE ->
+                                True
+
+                            _ ->
+                                memo
+    in
+    List.foldr foldFunc False errors
 
 
 {-| Calculate our own e1rm here instead of passing it in because we want to make
@@ -398,6 +458,9 @@ getTargetWeight model =
     case ( targetRPEDecimal, estimated1RM, model.errors ) of
         ( Just rpe, Just e1rm, [] ) ->
             String.fromFloat (round_ model.rounding (rpe * e1rm))
+
+        ( _, _, [] ) ->
+            "a"
 
         _ ->
             "..."
