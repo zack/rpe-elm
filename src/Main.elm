@@ -813,7 +813,7 @@ view model =
                     [ text (round_ model.rounding model.targetWeight) ]
                 ]
             , h3 []
-                [ text "Estimated 1RM: "
+                [ text "E1RM: "
                 , span [ id "e1RM" ]
                     [ text (round_ model.rounding model.estimated1RM) ]
                 , span [] [ text " × " ]
