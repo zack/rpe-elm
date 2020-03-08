@@ -3,7 +3,19 @@ module Main exposing (..)
 import Browser
 import Debug
 import Html exposing (..)
-import Html.Attributes exposing (class, classList, for, href, id, name, step, type_, value)
+import Html.Attributes
+    exposing
+        ( class
+        , classList
+        , for
+        , href
+        , id
+        , maxlength
+        , name
+        , step
+        , type_
+        , value
+        )
 import Html.Events exposing (on, onInput)
 import Json.Decode exposing (Decoder, float, succeed)
 import Json.Decode.Pipeline exposing (required)
@@ -83,6 +95,7 @@ type Field
     | GivenRPE
     | TargetReps
     | TargetRPE
+    | E1RMMultiplier
 
 
 type Error
@@ -102,6 +115,7 @@ type Msg
 type alias Model =
     { errors : List Error
     , estimated1RM : String
+    , e1RMMultiplier : String
     , givenRPE : String
     , givenReps : String
     , givenWeight : String
@@ -127,6 +141,7 @@ initialModel : RPETable -> Model
 initialModel rpeTable =
     { errors = initialErrors
     , estimated1RM = "..."
+    , e1RMMultiplier = "100"
     , givenRPE = ""
     , givenReps = ""
     , givenWeight = ""
@@ -367,6 +382,9 @@ update msg model =
             , Cmd.none
             )
 
+        UpdateField E1RMMultiplier multiplier ->
+            ( { model | e1RMMultiplier = multiplier }, Cmd.none )
+
 
 
 ---- VIEW ----
@@ -466,6 +484,23 @@ getTargetWeight model =
             "..."
 
 
+getE1RMMultiplied : String -> String -> String
+getE1RMMultiplied e1rm multiplier =
+    let
+        e2 =
+            String.toFloat e1rm
+
+        m2 =
+            String.toFloat multiplier
+    in
+    case ( e2, m2 ) of
+        ( Just e, Just m ) ->
+            String.fromFloat (e * m / 100)
+
+        _ ->
+            "..."
+
+
 getErrorText : List Error -> Field -> String
 getErrorText errors field =
     List.foldr
@@ -518,6 +553,9 @@ getErrorTextForBadField field =
 
         TargetRPE ->
             "RPE must be between 6 and 10"
+
+        E1RMMultiplier ->
+            ""
 
 
 getRepsForRPE : Maybe Int -> RPETable -> Maybe RPEReps
@@ -754,6 +792,22 @@ view model =
                 [ text "Estimated 1RM: "
                 , span [ id "e1RM" ]
                     [ text model.estimated1RM ]
+                , span [] [ text " × " ]
+                , input
+                    [ class "e1rm-multiplier"
+                    , maxlength 3
+                    , value model.e1RMMultiplier
+                    , onInput (UpdateField E1RMMultiplier)
+                    ]
+                    []
+                , span [] [ text "% = " ]
+                , span []
+                    [ text
+                        (getE1RMMultiplied
+                            model.estimated1RM
+                            model.e1RMMultiplier
+                        )
+                    ]
                 ]
             ]
         , div [ class "options" ]

@@ -135,6 +135,14 @@ input {
   width: calc(100% - 80px);
 }
 
+input.e1rm-multiplier {
+    width: 60px;
+    border: 1px solid grey;
+    display: inline;
+    height: 30px;
+    position: relative;
+}
+
 .input-row.bottom-border .input-container input{
   border-bottom: 2px solid #CCCCCC;
 }
@@ -154,4 +162,5 @@ input {
 .input-row.error input {
   background-color: #FFACAC;
 }
+
 
