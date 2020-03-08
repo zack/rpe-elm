@@ -289,40 +289,47 @@ getRoundAsFloat rounder =
             0.01
 
 
-round_ : Rounding -> Float -> Float
+round_ : Rounding -> String -> String
 round_ rounder val =
     let
         rounderFloat =
             getRoundAsFloat rounder
+
+        floatVal =
+            String.toFloat val
     in
-    toFloat (round (val / rounderFloat)) * rounderFloat
+    case floatVal of
+        Just v ->
+            String.fromFloat (toFloat (round (v / rounderFloat)) * rounderFloat)
+
+        _ ->
+            "..."
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         UpdateRounding roundingString ->
-            let
-                rounding =
-                    roundingFromString roundingString
-            in
-            ( { model
-                | rounding = rounding
-                , estimated1RM = getEstimated1RM { model | rounding = rounding }
-                , targetWeight = getTargetWeight { model | rounding = rounding }
-              }
-            , Cmd.none
-            )
+            ( { model | rounding = roundingFromString roundingString }, Cmd.none )
 
         UpdateField GivenWeight weight ->
             let
                 errors =
                     validateWeight model.errors weight GivenWeight
+
+                newModel =
+                    { model | givenWeight = weight }
+
+                estimated1RM =
+                    getEstimated1RM newModel
+
+                targetWeight =
+                    getTargetWeight { newModel | estimated1RM = estimated1RM }
             in
             ( { model
                 | givenWeight = weight
-                , estimated1RM = getEstimated1RM { model | givenWeight = weight, errors = errors }
-                , targetWeight = getTargetWeight { model | givenWeight = weight, errors = errors }
+                , estimated1RM = estimated1RM
+                , targetWeight = targetWeight
                 , errors = errors
               }
             , Cmd.none
@@ -332,11 +339,20 @@ update msg model =
             let
                 errors =
                     validateReps model.errors reps GivenReps
+
+                newModel =
+                    { model | givenReps = reps }
+
+                estimated1RM =
+                    getEstimated1RM newModel
+
+                targetWeight =
+                    getTargetWeight { newModel | estimated1RM = estimated1RM }
             in
             ( { model
                 | givenReps = reps
-                , estimated1RM = getEstimated1RM { model | givenReps = reps, errors = errors }
-                , targetWeight = getTargetWeight { model | givenReps = reps, errors = errors }
+                , estimated1RM = estimated1RM
+                , targetWeight = targetWeight
                 , errors = errors
               }
             , Cmd.none
@@ -346,11 +362,20 @@ update msg model =
             let
                 errors =
                     validateRPE model.errors rpe GivenRPE
+
+                newModel =
+                    { model | givenRPE = rpe, errors = errors }
+
+                estimated1RM =
+                    getEstimated1RM newModel
+
+                targetWeight =
+                    getTargetWeight { newModel | estimated1RM = estimated1RM }
             in
             ( { model
                 | givenRPE = rpe
-                , estimated1RM = getEstimated1RM { model | givenRPE = rpe, errors = errors }
-                , targetWeight = getTargetWeight { model | givenRPE = rpe, errors = errors }
+                , estimated1RM = estimated1RM
+                , targetWeight = targetWeight
                 , errors = errors
               }
             , Cmd.none
@@ -360,10 +385,13 @@ update msg model =
             let
                 errors =
                     validateReps model.errors reps TargetReps
+
+                newModel =
+                    { model | targetReps = reps, errors = errors }
             in
             ( { model
                 | targetReps = reps
-                , targetWeight = getTargetWeight { model | targetReps = reps, errors = errors }
+                , targetWeight = getTargetWeight newModel
                 , errors = errors
               }
             , Cmd.none
@@ -373,10 +401,13 @@ update msg model =
             let
                 errors =
                     validateRPE model.errors rpe TargetRPE
+
+                newModel =
+                    { model | targetRPE = rpe, errors = errors }
             in
             ( { model
                 | targetRPE = rpe
-                , targetWeight = getTargetWeight { model | targetRPE = rpe, errors = errors }
+                , targetWeight = getTargetWeight newModel
                 , errors = errors
               }
             , Cmd.none
@@ -415,7 +446,7 @@ getEstimated1RM model =
     in
     case ( givenRPEDecimal, floatWeight, cannotCalculate ) of
         ( Just rpe, Just weight, False ) ->
-            String.fromFloat (round_ model.rounding (weight / rpe))
+            String.fromFloat (weight / rpe)
 
         _ ->
             "..."
@@ -458,9 +489,6 @@ errorsPreventE1RM errors =
     List.foldr foldFunc False errors
 
 
-{-| Calculate our own e1rm here instead of passing it in because we want to make
-sure we are always using an unrounded e1rm to calculate our target weight
--}
 getTargetWeight : Model -> String
 getTargetWeight model =
     let
@@ -470,15 +498,11 @@ getTargetWeight model =
                 (getRepsForRPE (String.toInt model.targetRPE) model.rpeTable)
 
         estimated1RM =
-            String.toFloat
-                (getEstimated1RM { model | rounding = PointOhOne })
+            String.toFloat model.estimated1RM
     in
     case ( targetRPEDecimal, estimated1RM, model.errors ) of
         ( Just rpe, Just e1rm, [] ) ->
-            String.fromFloat (round_ model.rounding (rpe * e1rm))
-
-        ( _, _, [] ) ->
-            "a"
+            String.fromFloat (rpe * e1rm)
 
         _ ->
             "..."
@@ -786,12 +810,12 @@ view model =
             [ h3 []
                 [ text "Target weight: "
                 , span [ id "target-weight" ]
-                    [ text model.targetWeight ]
+                    [ text (round_ model.rounding model.targetWeight) ]
                 ]
             , h3 []
                 [ text "Estimated 1RM: "
                 , span [ id "e1RM" ]
-                    [ text model.estimated1RM ]
+                    [ text (round_ model.rounding model.estimated1RM) ]
                 , span [] [ text " × " ]
                 , input
                     [ class "e1rm-multiplier"
@@ -803,9 +827,11 @@ view model =
                 , span [] [ text "% = " ]
                 , span []
                     [ text
-                        (getE1RMMultiplied
-                            model.estimated1RM
-                            model.e1RMMultiplier
+                        (round_ model.rounding
+                            (getE1RMMultiplied
+                                model.estimated1RM
+                                model.e1RMMultiplier
+                            )
                         )
                     ]
                 ]

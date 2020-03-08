@@ -136,11 +136,13 @@ input {
 }
 
 input.e1rm-multiplier {
-    width: 60px;
     border: 1px solid grey;
     display: inline;
     height: 30px;
+    padding: 2px;
     position: relative;
+    width: 45px;
+    text-align: center;
 }
 
 .input-row.bottom-border .input-container input{
