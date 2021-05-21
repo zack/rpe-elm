@@ -1,7 +1,7 @@
 module Main exposing (..)
 
 import Browser
-import Debug
+-- import Debug
 import Html exposing (..)
 import Html.Attributes
     exposing
@@ -233,24 +233,24 @@ validateReps errors reps field =
 
 
 validateRPE : List Error -> String -> Field -> List Error
-validateRPE errors reps field =
+validateRPE errors rpe field =
     let
-        parsedInt =
-            String.toInt reps
+        parsedFloat =
+            String.toFloat rpe
 
         cleanErrors =
             filterAllFieldFromErrors field errors
     in
-    case parsedInt of
+    case parsedFloat of
         Nothing ->
-            if reps == "" then
+            if rpe == "" then
                 addErrorWithUniqueFieldToErrors (Missing field) cleanErrors
 
             else
                 addErrorWithUniqueFieldToErrors (Bad field) cleanErrors
 
-        Just int ->
-            if int < 6 || int > 10 then
+        Just float ->
+            if float < 6 || float > 10 then
                 addErrorWithUniqueFieldToErrors (Bad field) cleanErrors
 
             else
@@ -318,7 +318,7 @@ update msg model =
                     validateWeight model.errors weight GivenWeight
 
                 newModel =
-                    { model | givenWeight = weight }
+                    { model | givenWeight = weight, errors = errors }
 
                 estimated1RM =
                     getEstimated1RM newModel
@@ -341,13 +341,14 @@ update msg model =
                     validateReps model.errors reps GivenReps
 
                 newModel =
-                    { model | givenReps = reps }
+                    { model | givenReps = reps, errors = errors }
 
                 estimated1RM =
                     getEstimated1RM newModel
 
                 targetWeight =
                     getTargetWeight { newModel | estimated1RM = estimated1RM }
+
             in
             ( { model
                 | givenReps = reps
@@ -433,16 +434,37 @@ showTargetFloat number =
 getEstimated1RM : Model -> String
 getEstimated1RM model =
     let
-        givenRPEDecimal =
+        givenRPE = String.toFloat model.givenRPE
+        givenRPEFloor =  Maybe.map floor givenRPE
+        givenRPECeiling =  Maybe.map ceiling givenRPE
+
+        givenRPEFloorDecimal =
             getValueForRepCount
                 (String.toInt model.givenReps)
-                (getRepsForRPE (String.toInt model.givenRPE) model.rpeTable)
+                (getRepsForRPE givenRPEFloor model.rpeTable)
+
+        givenRPECeilingDecimal =
+            getValueForRepCount
+                (String.toInt model.givenReps)
+                (getRepsForRPE givenRPECeiling model.rpeTable)
+
+        givenRPEDecimal =
+            case ( givenRPE ) of
+                (Just grpe) ->
+                    case ( givenRPECeilingDecimal, givenRPEFloorDecimal, givenRPEFloor ) of
+                        ( Just ceilDec, Just floorDec, Just floor) ->
+                            Just (floorDec + (( ceilDec - floorDec) * (grpe - (toFloat floor))))
+                        _ ->
+                            Nothing
+                _ ->
+                    Nothing
 
         floatWeight =
             String.toFloat model.givenWeight
 
         cannotCalculate =
             errorsPreventE1RM model.errors
+
     in
     case ( givenRPEDecimal, floatWeight, cannotCalculate ) of
         ( Just rpe, Just weight, False ) ->
@@ -492,13 +514,34 @@ errorsPreventE1RM errors =
 getTargetWeight : Model -> String
 getTargetWeight model =
     let
-        targetRPEDecimal =
+        targetRPE = String.toFloat model.targetRPE
+        targetRPEFloor =  Maybe.map floor targetRPE
+        targetRPECeiling =  Maybe.map ceiling targetRPE
+
+        targetRPEFloorDecimal =
             getValueForRepCount
                 (String.toInt model.targetReps)
-                (getRepsForRPE (String.toInt model.targetRPE) model.rpeTable)
+                (getRepsForRPE targetRPEFloor model.rpeTable)
+
+        targetRPECeilingDecimal =
+            getValueForRepCount
+                (String.toInt model.targetReps)
+                (getRepsForRPE targetRPECeiling model.rpeTable)
+
+        targetRPEDecimal =
+            case ( targetRPE ) of
+                (Just trpe) ->
+                    case ( targetRPECeilingDecimal, targetRPEFloorDecimal, targetRPEFloor ) of
+                        ( Just ceilDec, Just floorDec, Just floor) ->
+                            Just (floorDec + (( ceilDec - floorDec) * (trpe - (toFloat floor))))
+                        _ ->
+                            Nothing
+                _ ->
+                    Nothing
 
         estimated1RM =
             String.toFloat model.estimated1RM
+
     in
     case ( targetRPEDecimal, estimated1RM, model.errors ) of
         ( Just rpe, Just e1rm, [] ) ->
@@ -852,7 +895,7 @@ view model =
             ]
         , div [ class "footer" ]
             [ span []
-                [ text "© 2020 Zack Youngren" ]
+                [ text "© 2021 Zack Youngren" ]
             , br [] []
             , text "Code on "
             , a [ href "https://www.github.com/zack/rpe-elm" ]
