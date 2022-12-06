@@ -13,6 +13,7 @@ import Html.Attributes
         , maxlength
         , name
         , step
+        , selected
         , type_
         , value
         )
@@ -885,7 +886,7 @@ view model =
             , select [ class "rounding", id "rounding", name "rounding", onInput UpdateRounding ]
                 [ option [ value "5" ]
                     [ text "5.0" ]
-                , option [ value "2.5" ]
+                , option [ value "2.5", selected True ]
                     [ text "2.5" ]
                 , option [ value "1" ]
                     [ text "1.0" ]
@@ -895,7 +896,7 @@ view model =
             ]
         , div [ class "footer" ]
             [ span []
-                [ text "© 2021 Zack Youngren" ]
+                [ text "© 2022 Zack Youngren" ]
             , br [] []
             , text "Code on "
             , a [ href "https://www.github.com/zack/rpe-elm" ]
