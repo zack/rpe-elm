@@ -1,5 +1,10 @@
 Just a simple RPE calculator in Elm. Uses custom RPE values set by the coaches at my gym, so they may be a little different than yours.
 
+# Dev
+`$ npm install`
+`$ npm run serve`
+
+# Deploying
 Use `parcel build src/index.html` to build to `dist`.
 
 MIT License
