@@ -23,6 +23,10 @@ body {
   width: 100%;
 }
 
+.hidden {
+  display: none;
+}
+
 .header {
   background-color: #BBBBBB;
   border-bottom: 3px solid #5E5E5E;
@@ -33,6 +37,157 @@ body {
 
 .results {
   margin: 5px;
+}
+
+.bar-loader {
+  align-items: center;
+  display: flex;
+  height: 165px;
+  margin: 20px 0;
+  place-content: center;
+}
+
+.bar-container {
+  align-items: center;
+  display: flex;
+}
+
+input.bar-weight {
+  border-radius: 5px;
+  border: 2px solid black;
+  font-size: 20px;
+  height: 40px;
+  text-align: center;
+  width: 70px;
+}
+
+.actual-bar-weight {
+  font-size: 14px;
+  text-align: center;
+}
+
+.bar-disclaimer {
+  font-size: 14px;
+  font-weight: bold;
+  margin: 0 auto;
+  padding-bottom: 12px;
+  text-align: center;
+}
+
+.plates {
+  align-items: center;
+  display: flex;
+  margin: 20px 0;
+  place-content: center;
+}
+
+.bar {
+  background: #606060;
+}
+
+.bar.left {
+  height: 12px;
+  width: 50px;
+}
+
+.bar.left2 {
+  height: 28px;
+  width: 5px;
+}
+
+.bar.right {
+  width: 40px;
+  height: 18px;
+}
+
+.collar {
+  background: #a6a6a6;
+  border-radius: 4px;
+  border: 2px solid #8c8c8c;
+  height: 40px;
+  width: 20px;
+}
+
+.plate {
+  border-radius: 4px;
+  border: 1px solid black;
+  color: black;
+  font-weight: bold;
+  line-height: 17px;
+  text-align: center;
+  text-orientation: upright;
+  width: 17px;
+  writing-mode: vertical-rl;
+}
+
+.plate.k25 {
+  height: 160px;
+  background: #d90000;
+}
+
+.plate.k20 {
+  color: white;
+  height: 160px;
+  background: #0000b7;
+}
+
+.plate.k15 {
+  height: 160px;
+  background: #eaea14;
+}
+
+.plate.k10 {
+  height: 160px;
+  background: green;
+}
+
+.plate.k5 {
+  height: 110px;
+  background: white;
+}
+
+.plate.k2p5 {
+  color: white;
+  height: 100px;
+  background: black;
+}
+
+.plate.k1p25 {
+  background: silver;
+  height: 90px;
+  line-height: 11px;
+  width: 12px;
+}
+
+.plate.k1 {
+  background: green;
+  height: 60px;
+  line-height: 12px;
+  width: 12px;
+}
+
+.plate.k0 {
+  display: none;
+}
+
+.loader-options {
+  display: flex;
+  padding-top: 8px;
+}
+
+.flex-pad {
+  flex: 1;
+}
+
+.loader-options label {
+  background: none;
+  border: none;
+  font-size: 20px;
+  height: fit-content;
+  line-height: 20px;
+  margin: 0;
+  padding: 0 8px;
+  width: fit-content;
 }
 
 .options {
@@ -114,7 +269,7 @@ label {
   border-bottom: 2px solid #CCCCCC;
 }
 
-input {
+input.text {
   -moz-appearance: none;
   -webkit-appearance: none;
   -webkit-border-radius: 0;

@@ -1,19 +1,21 @@
 module Main exposing (..)
 
+import Array exposing (Array)
 import Browser
--- import Debug
+import Debug
 import Html exposing (..)
 import Html.Attributes
     exposing
-        ( class
+        ( checked
+        , class
         , classList
         , for
         , href
         , id
         , maxlength
         , name
-        , step
         , selected
+        , step
         , type_
         , value
         )
@@ -105,7 +107,9 @@ type Error
 
 
 type Msg
-    = UpdateField Field String
+    = UpdateBarWeight String
+    | UpdateCollars String
+    | UpdateField Field String
     | UpdateRounding String
 
 
@@ -114,7 +118,9 @@ type Msg
 
 
 type alias Model =
-    { errors : List Error
+    { barWeight : Float
+    , collars : Bool
+    , errors : List Error
     , estimated1RM : String
     , e1RMMultiplier : String
     , givenRPE : String
@@ -140,7 +146,9 @@ initialErrors =
 
 initialModel : RPETable -> Model
 initialModel rpeTable =
-    { errors = initialErrors
+    { barWeight = 25
+    , collars = True
+    , errors = initialErrors
     , estimated1RM = "..."
     , e1RMMultiplier = "100"
     , givenRPE = ""
@@ -310,8 +318,23 @@ round_ rounder val =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        UpdateCollars _ ->
+            ( { model | collars = not model.collars }, Cmd.none )
+
+        UpdateBarWeight weight ->
+            ( { model | barWeight = Maybe.withDefault 0 (String.toFloat weight) }, Cmd.none )
+
         UpdateRounding roundingString ->
-            ( { model | rounding = roundingFromString roundingString }, Cmd.none )
+            let
+                rounding =
+                    roundingFromString roundingString
+            in
+            ( { model
+                | rounding = rounding
+                , barWeight = Maybe.withDefault 0 (String.toFloat (round_ rounding model.targetWeight))
+              }
+            , Cmd.none
+            )
 
         UpdateField GivenWeight weight ->
             let
@@ -326,9 +349,13 @@ update msg model =
 
                 targetWeight =
                     getTargetWeight { newModel | estimated1RM = estimated1RM }
+
+                barWeight =
+                    Maybe.withDefault 0 (String.toFloat (round_ model.rounding targetWeight))
             in
             ( { model
-                | givenWeight = weight
+                | barWeight = barWeight
+                , givenWeight = weight
                 , estimated1RM = estimated1RM
                 , targetWeight = targetWeight
                 , errors = errors
@@ -350,9 +377,12 @@ update msg model =
                 targetWeight =
                     getTargetWeight { newModel | estimated1RM = estimated1RM }
 
+                barWeight =
+                    Maybe.withDefault 0 (String.toFloat (round_ model.rounding targetWeight))
             in
             ( { model
-                | givenReps = reps
+                | barWeight = barWeight
+                , givenReps = reps
                 , estimated1RM = estimated1RM
                 , targetWeight = targetWeight
                 , errors = errors
@@ -373,9 +403,13 @@ update msg model =
 
                 targetWeight =
                     getTargetWeight { newModel | estimated1RM = estimated1RM }
+
+                barWeight =
+                    Maybe.withDefault 0 (String.toFloat (round_ model.rounding targetWeight))
             in
             ( { model
-                | givenRPE = rpe
+                | barWeight = barWeight
+                , givenRPE = rpe
                 , estimated1RM = estimated1RM
                 , targetWeight = targetWeight
                 , errors = errors
@@ -390,10 +424,17 @@ update msg model =
 
                 newModel =
                     { model | targetReps = reps, errors = errors }
+
+                targetWeight =
+                    getTargetWeight newModel
+
+                barWeight =
+                    Maybe.withDefault 0 (String.toFloat (round_ model.rounding targetWeight))
             in
             ( { model
-                | targetReps = reps
-                , targetWeight = getTargetWeight newModel
+                | barWeight = barWeight
+                , targetReps = reps
+                , targetWeight = targetWeight
                 , errors = errors
               }
             , Cmd.none
@@ -406,10 +447,17 @@ update msg model =
 
                 newModel =
                     { model | targetRPE = rpe, errors = errors }
+
+                targetWeight =
+                    getTargetWeight newModel
+
+                barWeight =
+                    Maybe.withDefault 0 (String.toFloat (round_ model.rounding targetWeight))
             in
             ( { model
-                | targetRPE = rpe
-                , targetWeight = getTargetWeight newModel
+                | barWeight = barWeight
+                , targetRPE = rpe
+                , targetWeight = targetWeight
                 , errors = errors
               }
             , Cmd.none
@@ -435,9 +483,14 @@ showTargetFloat number =
 getEstimated1RM : Model -> String
 getEstimated1RM model =
     let
-        givenRPE = String.toFloat model.givenRPE
-        givenRPEFloor =  Maybe.map floor givenRPE
-        givenRPECeiling =  Maybe.map ceiling givenRPE
+        givenRPE =
+            String.toFloat model.givenRPE
+
+        givenRPEFloor =
+            Maybe.map floor givenRPE
+
+        givenRPECeiling =
+            Maybe.map ceiling givenRPE
 
         givenRPEFloorDecimal =
             getValueForRepCount
@@ -450,13 +503,15 @@ getEstimated1RM model =
                 (getRepsForRPE givenRPECeiling model.rpeTable)
 
         givenRPEDecimal =
-            case ( givenRPE ) of
-                (Just grpe) ->
+            case givenRPE of
+                Just grpe ->
                     case ( givenRPECeilingDecimal, givenRPEFloorDecimal, givenRPEFloor ) of
-                        ( Just ceilDec, Just floorDec, Just floor) ->
-                            Just (floorDec + (( ceilDec - floorDec) * (grpe - (toFloat floor))))
+                        ( Just ceilDec, Just floorDec, Just floor ) ->
+                            Just (floorDec + ((ceilDec - floorDec) * (grpe - toFloat floor)))
+
                         _ ->
                             Nothing
+
                 _ ->
                     Nothing
 
@@ -465,7 +520,6 @@ getEstimated1RM model =
 
         cannotCalculate =
             errorsPreventE1RM model.errors
-
     in
     case ( givenRPEDecimal, floatWeight, cannotCalculate ) of
         ( Just rpe, Just weight, False ) ->
@@ -515,9 +569,14 @@ errorsPreventE1RM errors =
 getTargetWeight : Model -> String
 getTargetWeight model =
     let
-        targetRPE = String.toFloat model.targetRPE
-        targetRPEFloor =  Maybe.map floor targetRPE
-        targetRPECeiling =  Maybe.map ceiling targetRPE
+        targetRPE =
+            String.toFloat model.targetRPE
+
+        targetRPEFloor =
+            Maybe.map floor targetRPE
+
+        targetRPECeiling =
+            Maybe.map ceiling targetRPE
 
         targetRPEFloorDecimal =
             getValueForRepCount
@@ -530,19 +589,20 @@ getTargetWeight model =
                 (getRepsForRPE targetRPECeiling model.rpeTable)
 
         targetRPEDecimal =
-            case ( targetRPE ) of
-                (Just trpe) ->
+            case targetRPE of
+                Just trpe ->
                     case ( targetRPECeilingDecimal, targetRPEFloorDecimal, targetRPEFloor ) of
-                        ( Just ceilDec, Just floorDec, Just floor) ->
-                            Just (floorDec + (( ceilDec - floorDec) * (trpe - (toFloat floor))))
+                        ( Just ceilDec, Just floorDec, Just floor ) ->
+                            Just (floorDec + ((ceilDec - floorDec) * (trpe - toFloat floor)))
+
                         _ ->
                             Nothing
+
                 _ ->
                     Nothing
 
         estimated1RM =
             String.toFloat model.estimated1RM
-
     in
     case ( targetRPEDecimal, estimated1RM, model.errors ) of
         ( Just rpe, Just e1rm, [] ) ->
@@ -691,6 +751,102 @@ getValueForRepCount repCount rpeReps =
             Nothing
 
 
+getPlateClass : Float -> String
+getPlateClass weight =
+    "k" ++ String.replace "." "p" (String.fromFloat weight)
+
+
+getPlateDiv : Float -> Html msg
+getPlateDiv weight =
+    div [ class ("plate " ++ getPlateClass weight) ]
+        [ text (String.fromFloat weight)
+        ]
+
+
+getPlateWeights : Array Float -> Float -> Array Float
+getPlateWeights plates remainder =
+    if remainder == 0 then
+        plates
+
+    else
+        let
+            ( a, b ) =
+                getNextPlateAndRemainder remainder
+        in
+        getPlateWeights (Array.push a plates) b
+
+
+getNextPlateAndRemainder : Float -> ( Float, Float )
+getNextPlateAndRemainder weight =
+    if weight >= 25 then
+        ( 25, weight - 25 )
+
+    else if weight >= 20 then
+        ( 20, weight - 20 )
+
+    else if weight >= 15 then
+        ( 15, weight - 15 )
+
+    else if weight >= 10 then
+        ( 10, weight - 10 )
+
+    else if weight >= 5 then
+        ( 5, weight - 5 )
+
+    else if weight >= 2.5 then
+        ( 2.5, weight - 2.5 )
+
+    else if weight >= 1.25 then
+        ( 1.25, weight - 1.25 )
+
+    else if weight >= 1 then
+        ( 1, weight - 1 )
+
+    else
+        ( 0, 0 )
+
+
+getBarLoader : Float -> Bool -> Html msg
+getBarLoader weight collars =
+    let
+        useCollars =
+            collars && weight >= 25
+
+        plateWeight =
+            case useCollars of
+                True ->
+                    (weight - 25) / 2
+
+                False ->
+                    (weight - 20) / 2
+
+        plateWeights =
+            getPlateWeights Array.empty plateWeight
+
+        realTotal =
+            case useCollars of
+                True ->
+                    Array.foldr (+) 0 plateWeights * 2 + 25
+
+                False ->
+                    Array.foldr (+) 0 plateWeights * 2 + 20
+    in
+    div []
+        [ div [ class "bar-loader" ]
+            [ div [ class "flex-pad" ] []
+            , div [ class "bar-container" ]
+                [ div [ class "bar left" ] []
+                , div [ class "bar left2" ] []
+                , div [ class "plates" ] (Array.toList (Array.map getPlateDiv plateWeights))
+                , div [ classList [ ( "collar", True ), ( "hidden", not useCollars ) ] ] []
+                , div [ class "bar right" ] []
+                ]
+            , div [ class "actual-bar-weight flex-pad" ] [ text ("(" ++ String.fromFloat realTotal ++ " kg)") ]
+            ]
+        , div [ class "bar-disclaimer" ] [ text "Not all weights can be made. Bar loader will always round down to the next possible weight." ]
+        ]
+
+
 view : Model -> Html Msg
 view model =
     let
@@ -749,7 +905,7 @@ view model =
                 [ label [ for "given-weight" ]
                     [ text "Weight " ]
                 , input
-                    [ class "weight"
+                    [ class "weight text"
                     , id "given-weight"
                     , onInput (UpdateField GivenWeight)
                     , type_ "number"
@@ -771,7 +927,7 @@ view model =
                 [ label [ for "given-reps" ]
                     [ text "Reps " ]
                 , input
-                    [ class "reps"
+                    [ class "reps text"
                     , id "given-reps"
                     , onInput (UpdateField GivenReps)
                     , type_ "number"
@@ -793,7 +949,7 @@ view model =
                 [ label [ for "given-rpe" ]
                     [ text "RPE " ]
                 , input
-                    [ class "rpe"
+                    [ class "rpe text"
                     , id "given-rpe"
                     , onInput (UpdateField GivenRPE)
                     , type_ "number"
@@ -819,7 +975,7 @@ view model =
                 [ label [ for "desired-reps" ]
                     [ text "Reps " ]
                 , input
-                    [ class "reps"
+                    [ class "reps text"
                     , id "desired-reps"
                     , onInput (UpdateField TargetReps)
                     , type_ "number"
@@ -841,7 +997,7 @@ view model =
                 [ label [ for "desired-rpe" ]
                     [ text "RPE " ]
                 , input
-                    [ class "rpe"
+                    [ class "rpe text"
                     , id "desired-rpe"
                     , type_ "number"
                     , value model.targetRPE
@@ -862,7 +1018,7 @@ view model =
                     [ text (round_ model.rounding model.estimated1RM) ]
                 , span [] [ text " × " ]
                 , input
-                    [ class "e1rm-multiplier"
+                    [ class "e1rm-multiplier text"
                     , maxlength 3
                     , value model.e1RMMultiplier
                     , onInput (UpdateField E1RMMultiplier)
@@ -894,6 +1050,23 @@ view model =
                     [ text "0.01" ]
                 ]
             ]
+        , div [ class "loader-options" ]
+            [ div [ class "collar-option flex-pad" ]
+                [ label [ for "collars" ]
+                    [ text "Collars" ]
+                , input [ id "collars", onInput UpdateCollars, type_ "checkbox", checked model.collars ] []
+                ]
+            , input
+                [ class "bar-weight"
+                , id "bar-weight"
+                , onInput UpdateBarWeight
+                , type_ "number"
+                , value (String.fromFloat model.barWeight)
+                ]
+                []
+            , div [ class "flex-pad" ] []
+            ]
+        , getBarLoader model.barWeight model.collars
         , div [ class "footer" ]
             [ span []
                 [ text "© 2022 Zack Youngren" ]
