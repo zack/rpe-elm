@@ -111,58 +111,69 @@ input.bar-weight {
 .plate {
   border-radius: 4px;
   border: 1px solid black;
-  color: black;
+  color: white;
   font-weight: bold;
-  line-height: 17px;
+  line-height: 19px;
   text-align: center;
   text-orientation: upright;
-  width: 17px;
+  width: 22px;
   writing-mode: vertical-rl;
 }
 
 .plate.k25 {
-  height: 160px;
   background: #d90000;
+  border: 2px solid #970000;
+  height: 160px;
 }
 
 .plate.k20 {
-  color: white;
-  height: 160px;
   background: #0000b7;
+  border: 2px solid #170068;
+  height: 160px;
 }
 
 .plate.k15 {
-  height: 160px;
   background: #eaea14;
+  border: 2px solid #b1b100;
+  color: black;
+  height: 160px;
 }
 
 .plate.k10 {
-  height: 160px;
   background: green;
+  border: 2px solid #004200;
+  height: 160px;
 }
 
 .plate.k5 {
-  height: 120px;
   background: white;
+  border: 2px solid #ccc;
+  color: black;
+  height: 120px;
 }
 
 .plate.k2p5 {
-  color: white;
-  height: 110px;
   background: black;
+  border: 2px solid black;
+  height: 110px;
+  line-height: 14px;
+  width: 17px;
 }
 
 .plate.k1p25 {
   background: silver;
+  border: 2px solid grey;
+  color: black;
   height: 100px;
-  line-height: 11px;
-  width: 12px;
+  line-height: 14px;
+  width: 17px;
 }
 
 .plate.k1 {
   background: green;
-  height: 90px;
-  line-height: 12px;
+  border: 2px solid #004200;
+  height: 70px;
+  line-height: 8px;
   width: 12px;
 }
 
