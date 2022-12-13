@@ -142,26 +142,26 @@ input.bar-weight {
 }
 
 .plate.k5 {
-  height: 110px;
+  height: 120px;
   background: white;
 }
 
 .plate.k2p5 {
   color: white;
-  height: 100px;
+  height: 110px;
   background: black;
 }
 
 .plate.k1p25 {
   background: silver;
-  height: 90px;
+  height: 100px;
   line-height: 11px;
   width: 12px;
 }
 
 .plate.k1 {
   background: green;
-  height: 60px;
+  height: 90px;
   line-height: 12px;
   width: 12px;
 }
