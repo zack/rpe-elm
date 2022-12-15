@@ -799,8 +799,8 @@ getNextPlateAndRemainder weight =
     else if weight >= 1.25 then
         ( 1.25, weight - 1.25 )
 
-    else if weight >= 1 then
-        ( 1, weight - 1 )
+    else if weight >= 0.5 then
+        ( 0.5, weight - 0.5 )
 
     else
         ( 0, 0 )
