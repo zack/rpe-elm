@@ -908,7 +908,6 @@ view model =
                     [ class "weight text"
                     , id "given-weight"
                     , onInput (UpdateField GivenWeight)
-                    , type_ "number"
                     , value model.givenWeight
                     ]
                     []
@@ -930,7 +929,6 @@ view model =
                     [ class "reps text"
                     , id "given-reps"
                     , onInput (UpdateField GivenReps)
-                    , type_ "number"
                     , value model.givenReps
                     ]
                     []
@@ -952,7 +950,6 @@ view model =
                     [ class "rpe text"
                     , id "given-rpe"
                     , onInput (UpdateField GivenRPE)
-                    , type_ "number"
                     , value model.givenRPE
                     ]
                     []
@@ -978,7 +975,6 @@ view model =
                     [ class "reps text"
                     , id "desired-reps"
                     , onInput (UpdateField TargetReps)
-                    , type_ "number"
                     , value model.targetReps
                     ]
                     []
@@ -999,7 +995,6 @@ view model =
                 , input
                     [ class "rpe text"
                     , id "desired-rpe"
-                    , type_ "number"
                     , value model.targetRPE
                     , onInput (UpdateField TargetRPE)
                     ]
@@ -1060,7 +1055,6 @@ view model =
                 [ class "bar-weight"
                 , id "bar-weight"
                 , onInput UpdateBarWeight
-                , type_ "number"
                 , value (String.fromFloat model.barWeight)
                 ]
                 []
