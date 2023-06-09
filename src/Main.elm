@@ -1070,7 +1070,7 @@ view model =
         , getBarLoader model.barWeight model.collars
         , div [ class "footer" ]
             [ span []
-                [ text "© 2022 Zack Youngren" ]
+                [ text "© 2023 Zack Youngren" ]
             , br [] []
             , text "Code on "
             , a [ href "https://www.github.com/zack/rpe-elm" ]
