@@ -32,6 +32,7 @@ import List
 decodeRPETable : Decoder RPETable
 decodeRPETable =
     succeed RPETable
+        |> required "rpe5" decodeReps
         |> required "rpe6" decodeReps
         |> required "rpe7" decodeReps
         |> required "rpe8" decodeReps
@@ -61,7 +62,8 @@ decodeReps =
 
 
 type alias RPETable =
-    { rpe6 : RPEReps
+    { rpe5: RPEReps
+    , rpe6 : RPEReps
     , rpe7 : RPEReps
     , rpe8 : RPEReps
     , rpe9 : RPEReps
@@ -259,7 +261,7 @@ validateRPE errors rpe field =
                 addErrorWithUniqueFieldToErrors (Bad field) cleanErrors
 
         Just float ->
-            if float < 6 || float > 10 then
+            if float < 5 || float > 10 then
                 addErrorWithUniqueFieldToErrors (Bad field) cleanErrors
 
             else
@@ -643,13 +645,13 @@ getErrorText errors field =
                             "Reps must be between 1 and 10"
 
                         else if field == GivenRPE then
-                            "RPE must be between 6 and 10"
+                            "RPE must be between 5 and 10"
 
                         else if field == TargetReps then
                             "Reps must be between 1 and 10"
 
                         else if field == TargetRPE then
-                            "RPE must be between 6 and 10"
+                            "RPE must be between 5 and 10"
 
                         else
                             memo
@@ -674,13 +676,13 @@ getErrorTextForBadField field =
             "Reps must be between 1 and 10"
 
         GivenRPE ->
-            "RPE must be between 6 and 10"
+            "RPE must be between 5 and 10"
 
         TargetReps ->
             "Reps must be between 1 and 10"
 
         TargetRPE ->
-            "RPE must be between 6 and 10"
+            "RPE must be between 5 and 10"
 
         E1RMMultiplier ->
             ""
@@ -689,6 +691,9 @@ getErrorTextForBadField field =
 getRepsForRPE : Maybe Int -> RPETable -> Maybe RPEReps
 getRepsForRPE rpe rpeTable =
     case rpe of
+        Just 5 ->
+            Just rpeTable.rpe5
+
         Just 6 ->
             Just rpeTable.rpe6
 
@@ -1070,7 +1075,7 @@ view model =
         , getBarLoader model.barWeight model.collars
         , div [ class "footer" ]
             [ span []
-                [ text "© 2023 Zack Youngren" ]
+                [ text "© 2024 Zack Youngren" ]
             , br [] []
             , text "Code on "
             , a [ href "https://www.github.com/zack/rpe-elm" ]
