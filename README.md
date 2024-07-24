@@ -6,7 +6,9 @@ Just a simple RPE calculator (and bar loader) written in Elm. Uses custom RPE va
 `$ npm run serve`
 
 # Deploying
-Use `parcel build src/index.html` to build to `dist`.
+`$ npx elm make src/Main.elm --output elm.js --optimize`
+
+`$ npx uglifyjs elm.js --compress 'pure_funcs="F2,F3,F4,F5,F6,F7,F8,F9,A2,A3,A4,A5,A6,A7,A8,A9",pure_getters=true,keep_fargs=false,unsafe_comps=true,unsafe=true,passes=2' --output=elm.js && npx uglifyjs elm.js --mangle --output=elm.js`
 
 # License
 
